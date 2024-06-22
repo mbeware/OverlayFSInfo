@@ -31,7 +31,7 @@ if __name__ == "__main__":
     parser_newlayer.add_argument('--Workdir',nargs=1,help="specify the working directory")
     args = parser.parse_args()
 
-    if args.list:
+    if args.list: 
         print("List all overlay filesytems")
     if args.info:
         print(f"List overlay structure {args.info}")
