@@ -67,20 +67,24 @@ echo "Content for file 9 on level ulfs" > /tmp/tstofs/ulfs/subdir1/subdir1_file9
 
 }
 
-Clean_testfoldersAndFiles() {
+Delete_testfoldersAndFiles(){
 sudo rm -rf /tmp/tstofs
 }
 
-if [ $1 = "Create" ] 
-    then
-    create_testfoldersAndFiles
-elif [ $1 = "Clean" ] 
-    then
-    Clean_testfoldersAndFiles
+Clean_testfoldersAndFiles(){
+    UmountOFS
+    Delete_testfoldersAndFiles
+} 
 
-else
-    create_testfoldersAndFiles
-    sudo mount overlay -t overlay -o lowerdir=/tmp/tstofs/llfs_1:/tmp/tstofs/llfs_2,upperdir=/tmp/tstofs/ulfs,workdir=/tmp/tstofs/workfs,redirect_dir=on,index=on,xino=on /tmp/tstofs/tstofs 
+MountOFS(){
+    sudo mount overlay -t overlay -o lowerdir=/tmp/tstofs/llfs_2:/tmp/tstofs/llfs_1,upperdir=/tmp/tstofs/ulfs,workdir=/tmp/tstofs/workfs,redirect_dir=on,index=on,xino=on /tmp/tstofs/tstofs    
+}
+
+UmountOFS()  {  
+    sudo umount /tmp/tstofs/tstofs
+}
+
+Test(){
                                                           
     rm /tmp/tstofs/tstofs/file7_deleted
     rm /tmp/tstofs/tstofs/file6_deleted
@@ -89,6 +93,8 @@ else
     rm /tmp/tstofs//tstofs/subdir1/subdir1_file7_deleted
     rm /tmp/tstofs/tstofs/subdir1/subdir1_file6_deleted
     rm /tmp/tstofs/tstofs/subdir1/subdir1_file9_deleted
+
+    echo "Content for file 10 on level ulfs" > /tmp/tstofs/tstofs/file10_ul
 
 
     ls -lR /tmp/tstofs/
@@ -107,7 +113,40 @@ else
     echo "==newlayer======================================================"
     python3 ./ListOrigin.py newlayer /tmp/tstofs/tstofs /tmp/tstofs/nlfs
     echo "================================================================"
-    sudo umount /tmp/tstofs/tstofs
+    
+}
 
+if [ $# -ne 1 ]
+    then
+    echo "Usage: $0 Create|Clean|Mount|Umount|Test" 
+elif [ $1 = "Create" ] 
+    then
+    create_testfoldersAndFiles
+elif [ $1 = "Clean" ] 
+    then
     Clean_testfoldersAndFiles
+elif [ $1 = "Delete" ]
+    then
+    Delete_testfoldersAndFiles
+elif [ $1 = "Mount" ] 
+    then
+    create_testfoldersAndFiles
+    MountOFS
+elif [ $1 = "Umount" ] 
+    then
+    UmountOFS
+elif [ $1 = "Test" ] 
+    then
+    create_testfoldersAndFiles
+    MountOFS
+    Test
+    Clean_testfoldersAndFiles
+elif [ $1 = "TestAndKeep" ]    
+    then
+    create_testfoldersAndFiles
+    MountOFS
+    Test
+else
+    echo "Usage: $0 Create|Clean|Mount|Umount|Test"
+
 fi

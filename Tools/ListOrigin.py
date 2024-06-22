@@ -1,19 +1,60 @@
-# def GetOverlayStructure():
-#     pass
 
-# def ListOrigin(FileNames):
-#     OriginList = []
-#     for FileName in FileNames:
-#         OriginList.append(FileName)
+def ExtractOverlayInfo(line):
+    aaa = line.split(",")
+    OFSstruct={}
+    OFSstruct["BaseDir"] = aaa[0].split(" ")[1]
+    OFSstruct["lowerdir"] = []
+    
+    
+    for a in aaa :
+        aType = a.split("=")[0]
+        if aType=="lowerdir" :
+            bbb = a.split("=")[1].split(":")
+            for b in bbb :
+                OFSstruct["lowerdir"].append(b)
+        elif aType=="upperdir" or aType=="workdir" :
+            OFSstruct[aType] = a.split("=")[1]
+    return OFSstruct
+    
 
-#     return OriginList   
+def GetMountedOverlayFSInfo():
+    overlayInfo = {}
+    with open("/etc/mtab", 'r') as file:
+        lines = file.readlines()
+    overlay_lines = [line for line in lines if line.startswith("overlay")]
+    for line in overlay_lines : 
+        thisOverlayInfo = ExtractOverlayInfo(line)
+        overlayInfo[thisOverlayInfo["BaseDir"]] = thisOverlayInfo
+    return overlayInfo
+
+def DisplayOverlayInfo(overlayInfo,filter="all"):
+    for item in overlayInfo:
+        if overlayInfo[item]['BaseDir'] == filter or filter == "all":
+            print()
+            print(f"{overlayInfo[item]['BaseDir']}  \t\tworkdir: {overlayInfo[item]['workdir']}")
+            print(f"  ├── upperdir: {overlayInfo[item]['upperdir']}")
+            for j, lowerdir in enumerate(overlayInfo[item]['lowerdir']):
+                if j == len(overlayInfo[item]['lowerdir']) - 1:
+                    print(f"  └── lowerdir {-(j+1)}: {lowerdir}")
+                else:
+                    print(f"  ├── lowerdir {-(j+1)}: {lowerdir}")
+
+
 
 
 def HandleList(args):
-    print(f"List all overlay filesytems")
+    overlayinfo = GetMountedOverlayFSInfo()
+    for item in overlayinfo.keys():
+        print(item)
+
+    
 
 def HandleInfo(args):
-    print(f"List overlay structure {args.overlay =}")
+    overlayinfo = GetMountedOverlayFSInfo()
+    if args.overlay[0] in list(overlayinfo.keys()) or "all" in args.overlay:
+        DisplayOverlayInfo(overlayinfo,args.overlay[0])
+    else:
+        print(f"Overlay {args.overlay} not found")  
 
 def HandleShow(args):
     print(f"List overlay directories and files in a tree {args.overlay =}")
@@ -25,27 +66,41 @@ def HandleNewLayer(args):
     print(f"Create a new uppermost directory {args.overlay =}")
 
 
+def HandleTest(args):
+    print(f"{GetMountedOverlayFSInfo() =}")
+
+
+# the leftmost layer of the overlay mount command is the layer nearest to the upperdir. user -> ulfs -> llfs_2 -> llfs_1
 
 
 
 
 if __name__ == "__main__":
-    #arguments is from command line is the file name to check
+    import sys
+    if  len(sys.argv) == 1:
+        HandleTest(sys.argv)
+        exit(0)
+
+    
     import argparse
     parser = argparse.ArgumentParser()
     
     subparsers = parser.add_subparsers()
+    parser_test = subparsers.add_parser('test')
     parser_list = subparsers.add_parser('list')
     parser_info = subparsers.add_parser('info')
     parser_show = subparsers.add_parser('show')
     parser_clean = subparsers.add_parser('clean')
     parser_newlayer = subparsers.add_parser('newlayer')
 
+    parser_test.set_defaults(func=HandleTest)
     parser_list.set_defaults(func=HandleList)
     parser_info.set_defaults(func=HandleInfo)
     parser_clean.set_defaults(func=HandleClean)
     parser_newlayer.set_defaults(func=HandleNewLayer)
     parser_show.set_defaults(func=HandleShow)
+
+    parser_test.add_argument('test',action='store_true',help="test",default=False)
 
     parser_list.add_argument('list',action='store_true',help="List all overlay filesytems",default=False)
 
@@ -76,7 +131,6 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
     args.func(args)
-    print(args)
 
 
 # -List : List all overlay filesytems
@@ -106,65 +160,3 @@ if __name__ == "__main__":
 
 
 
-# import argparse
-
-# def main():
-#     parser = argparse.ArgumentParser(description="Process some actions.")
-
-#     # Create a mutually exclusive group for actions
-#     action_group = parser.add_mutually_exclusive_group()
-    
-#     # List action
-#     action_group.add_argument("list", action='store_true', help="List action (boolean).", default=False)
-
-#     # Info action
-#     action_group.add_argument("info", nargs="1", type=str, help="Info action with a directory name.",default=False)
-
-#     # Show action with optional parameters
-#     show_parser = action_group.add_argument_group("show", "Show action parameters")
-#     show_parser.add_argument("show", nargs="?", type=str, help="Show action with a directory name.",default=False)
-#     show_parser.add_argument("--DirOnly", action="store_true", help="Show directories only.")
-#     show_parser.add_argument("--MaxDeep", type=int, help="Specify max depth for the show action.")
-
-#     # Clean action with specific requirements
-#     clean_parser = action_group.add_argument_group("clean", "Clean action parameters")
-#     clean_parser.add_argument("clean", nargs="?", type=str, help="Clean action with a directory name and type.",default=False)
-#     clean_parser.add_argument("clean_type", nargs="?", choices=["All", "Dir", "File"], help="Specify what to clean.")
-#     clean_parser.add_argument("second_dir", nargs="?", type=str, help="Second directory name if Dir or File is selected.")
-
-#     # Newlayer action with optional parameters
-#     newlayer_parser = action_group.add_argument_group("newlayer", "Newlayer action parameters")
-#     newlayer_parser.add_argument("newlayer", nargs="?", type=str, help="Newlayer action with a directory name.",default=False)
-#     newlayer_parser.add_argument("--run", action="store_true", help="Run newlayer action.")
-#     newlayer_parser.add_argument("--workdir", type=str, help="Specify work directory for newlayer action.")
-
-#     args = parser.parse_args()
-
-#     # Handle actions based on parsed arguments
-#     if args.list:
-#         print("List action selected.")
-    
-#     elif args.info:
-#         print(f"Info action selected with directory: {args.info}")
-    
-#     elif args.show:
-#         print(f"Show action selected with directory: {args.show}")
-#         if args.DirOnly:
-#             print("Show directories only.")
-#         if args.MaxDeep:
-#             print(f"Max depth: {args.MaxDeep}")
-    
-#     elif args.clean:
-#         print(f"Clean action selected with directory: {args.clean} and type: {args.clean_type}")
-#         if args.clean_type in ["Dir", "File"]:
-#             print(f"Second directory: {args.second_dir}")
-    
-#     elif args.newlayer:
-#         print(f"Newlayer action selected with directory: {args.newlayer}")
-#         if args.run:
-#             print("Run newlayer action.")
-#         if args.workdir:
-#             print(f"Work directory: {args.workdir}")
-
-# if __name__ == "__main__":
-#     main()
