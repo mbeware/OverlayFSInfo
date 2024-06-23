@@ -1,60 +1,33 @@
+from mbe_ofslib import OFSManager, OFSinfo
+import argparse
 
-def ExtractOverlayInfo(line):
-    aaa = line.split(",")
-    OFSstruct={}
-    OFSstruct["BaseDir"] = aaa[0].split(" ")[1]
-    OFSstruct["lowerdir"] = []
-    
-    
-    for a in aaa :
-        aType = a.split("=")[0]
-        if aType=="lowerdir" :
-            bbb = a.split("=")[1].split(":")
-            for b in bbb :
-                OFSstruct["lowerdir"].append(b)
-        elif aType=="upperdir" or aType=="workdir" :
-            OFSstruct[aType] = a.split("=")[1]
-    return OFSstruct
-    
 
-def GetMountedOverlayFSInfo():
-    overlayInfo = {}
-    with open("/etc/mtab", 'r') as file:
-        lines = file.readlines()
-    overlay_lines = [line for line in lines if line.startswith("overlay")]
-    for line in overlay_lines : 
-        thisOverlayInfo = ExtractOverlayInfo(line)
-        overlayInfo[thisOverlayInfo["BaseDir"]] = thisOverlayInfo
-    return overlayInfo
+def display_overlay_info(overlay_info:dict[str,OFSinfo],filter="all"):
+    OFS_entry:OFSinfo
 
-def DisplayOverlayInfo(overlayInfo,filter="all"):
-    for item in overlayInfo:
-        if overlayInfo[item]['BaseDir'] == filter or filter == "all":
+    for OFS_entry in overlay_info.values():
+        if OFS_entry.base_dir == filter or filter == "all":
             print()
-            print(f"{overlayInfo[item]['BaseDir']}  \t\tworkdir: {overlayInfo[item]['workdir']}")
-            print(f"  ├── upperdir: {overlayInfo[item]['upperdir']}")
-            for j, lowerdir in enumerate(overlayInfo[item]['lowerdir']):
-                if j == len(overlayInfo[item]['lowerdir']) - 1:
+            print(f"{OFS_entry.base_dir}  \t\tworkdir: {OFS_entry.work_dir}")
+            print(f"  ├── upperdir: {OFS_entry.upper_dir}")
+            for j, lowerdir in enumerate(OFS_entry.lower_dir):
+                if j == len(OFS_entry.lower_dir) - 1:
                     print(f"  └── lowerdir {-(j+1)}: {lowerdir}")
                 else:
                     print(f"  ├── lowerdir {-(j+1)}: {lowerdir}")
-
-
-
-
 def HandleList(args):
-    overlayinfo = GetMountedOverlayFSInfo()
-    for item in overlayinfo.keys():
-        print(item)
-
-    
+    myOFS = OFSManager()
+    for base_folder in myOFS.info.keys():
+        print(base_folder)
 
 def HandleInfo(args):
-    overlayinfo = GetMountedOverlayFSInfo()
-    if args.overlay[0] in list(overlayinfo.keys()) or "all" in args.overlay:
-        DisplayOverlayInfo(overlayinfo,args.overlay[0])
+    myOFS = OFSManager()
+    filter = "".join(args.overlay[0]).rstrip("/")
+    
+    if filter == "all" or filter in myOFS.info.keys():
+        display_overlay_info(myOFS.info,filter)
     else:
-        print(f"Overlay {args.overlay} not found")  
+        print(f"Overlay <{filter}> not found")  
 
 def HandleShow(args):
     print(f"List overlay directories and files in a tree {args.overlay =}")
@@ -67,22 +40,14 @@ def HandleNewLayer(args):
 
 
 def HandleTest(args):
-    print(f"{GetMountedOverlayFSInfo() =}")
+    myOFS = OFSManager()
+    print(f"{myOFS.info =}")
 
 
 # the leftmost layer of the overlay mount command is the layer nearest to the upperdir. user -> ulfs -> llfs_2 -> llfs_1
 
 
-
-
-if __name__ == "__main__":
-    import sys
-    if  len(sys.argv) == 1:
-        HandleTest(sys.argv)
-        exit(0)
-
-    
-    import argparse
+def setup_argparsers():
     parser = argparse.ArgumentParser()
     
     subparsers = parser.add_subparsers()
@@ -128,7 +93,18 @@ if __name__ == "__main__":
     parser_newlayer.add_argument('--Run',action='store_true',help="don't ask for confirmation and run the script")
     parser_newlayer.add_argument('--Workdir',nargs=1,help="specify the working directory")
 
+    return parser
+    
 
+
+if __name__ == "__main__":
+    import sys
+    if  len(sys.argv) == 1:
+        HandleTest(sys.argv)
+        exit(0)
+
+
+    parser = setup_argparsers()
     args = parser.parse_args()
     args.func(args)
 
