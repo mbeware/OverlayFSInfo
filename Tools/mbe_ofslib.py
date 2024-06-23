@@ -34,16 +34,10 @@ class OFSinfo:
         self.lower_dir = []
         self.options = {}
 
-@dataclass
-class OFSManager:
-    info: dict[str, OFSinfo]
-    
-    def __init__(self, mount_info_location: str = "/etc/mtab"):  # common values are "/proc/mounts", "/proc/self/mounts" and "/etc/mtab".
-        self.info = {}
-        self._GetMountedOverlayFSInfo(mount_info_location)
+
 
     @staticmethod
-    def _parse_OFS_info(OFS_def: str) -> dict:
+    def parse_OFS_info(OFS_def: str) -> dict:
         """
         Parses the OFS_def containing information about the OverlayFS and returns a dictionary
         containing the base directory, lower directories, upper directory, and work directory.
@@ -60,6 +54,8 @@ class OFSManager:
         Returns:
             dict: A dictionary containing the base directory, lower directories, upper directory, and work directory.
         """
+
+        
         OFSstruct = OFSinfo()
         OFSstruct.fstab = fstab_entry(OFS_def)
         
@@ -83,6 +79,16 @@ class OFSManager:
         return OFSstruct
     
 
+@dataclass
+class OFSManager:
+    info: dict[str, OFSinfo]
+    
+    def __init__(self, mount_info_location: str = "/etc/mtab"):  # common values are "/proc/mounts", "/proc/self/mounts" and "/etc/mtab".
+        self.info = {}
+        self._GetMountedOverlayFSInfo(mount_info_location)
+
+
+
     def _GetMountedOverlayFSInfo(self, mount_info_location: str):
         thisOverlayInfo:OFSinfo = OFSinfo()
         
@@ -90,7 +96,7 @@ class OFSManager:
             lines = file.readlines()
         overlay_lines = [line for line in lines if line.startswith("overlay")]
         for overlay_def in overlay_lines : 
-            thisOverlayInfo = self._parse_OFS_info(overlay_def)
+            thisOverlayInfo = OFSinfo.parse_OFS_info(overlay_def)
             self.info[thisOverlayInfo.base_dir] = thisOverlayInfo
 
 if __name__ == "__main__":
