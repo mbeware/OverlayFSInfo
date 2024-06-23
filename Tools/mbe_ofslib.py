@@ -20,30 +20,27 @@ class fstab_entry:
         self.fs_freq = line.split()[4]
         self.fs_passno = line.split()[5]
 
-
 @dataclass 
 class OFSinfo:
     base_dir: str
     work_dir: str
     upper_dir: str
-    lower_dir: list[str]  
+    lower_dir: list[str]  # list of lower directories in the same order as they appear in fstab. The first entry is the closest to the base/upper directory
     fstab: fstab_entry
-    options: dict[str,str]
+    options: dict[str,str] # fstab.fs_mntops in a dict for easy access
 
 
     def __init__(self):
         self.lower_dir = []
         self.options = {}
 
-
-
 @dataclass
 class OFSManager:
     info: dict[str, OFSinfo]
     
-    def __init__(self):
+    def __init__(self, mount_info_location: str = "/etc/mtab"):  # common values are "/proc/mounts", "/proc/self/mounts" and "/etc/mtab".
         self.info = {}
-        self._GetMountedOverlayFSInfo()
+        self._GetMountedOverlayFSInfo(mount_info_location)
 
     @staticmethod
     def _parse_OFS_info(OFS_def: str) -> dict:
@@ -88,13 +85,16 @@ class OFSManager:
         return OFSstruct
     
 
-    def _GetMountedOverlayFSInfo(self):
+    def _GetMountedOverlayFSInfo(self, mount_info_location: str):
         thisOverlayInfo:OFSinfo = OFSinfo()
-        # Info from /etc/mtab because it has a more complete list of all mounted filesystems, most of the time...
-        with open("/etc/mtab", 'r') as file:
+        
+        with open(mount_info_location, 'r') as file:
             lines = file.readlines()
         overlay_lines = [line for line in lines if line.startswith("overlay")]
         for overlay_def in overlay_lines : 
             thisOverlayInfo = self._parse_OFS_info(overlay_def)
             self.info[thisOverlayInfo.base_dir] = thisOverlayInfo
 
+if __name__ == "__main__":
+    OFS = OFSManager("/proc/mounts")
+    print(OFS.info)
