@@ -63,10 +63,8 @@ class OFSManager:
         OFSstruct = OFSinfo()
         OFSstruct.fstab = fstab_entry(OFS_def)
         
-        OFSstruct.base_dir = OFSstruct.fstab.fs_file
-
-        # remove trailing slashes   
-        OFSstruct.base_dir = OFSstruct.base_dir.rstrip("/")
+              # remove trailing slashes   
+        OFSstruct.base_dir = OFSstruct.fstab.fs_file.rstrip("/")
 
         options_list = OFSstruct.fstab.fs_mntops.split(",")
 
