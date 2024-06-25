@@ -8,11 +8,21 @@ class MountInfo:
     major_minor: str
     root: str
     mount_point: str
-    mount_options: List[str]
+    mount_options: Dict[str, str]
     optional_fields: Dict[str, str]
     filesystem_type: str
     mount_source: str
-    super_options: List[str]
+    super_options: Dict[str, str]
+
+def parse_options(options_str: str) -> Dict[str, str]:
+    options = {}
+    for opt in options_str.split(','):
+        if '=' in opt:
+            key, value = opt.split('=', 1)
+            options[key] = value
+        else:
+            options[opt] = True
+    return options
 
 def parse_mountinfo_line(line: str) -> MountInfo:
     parts = line.split()
@@ -21,7 +31,7 @@ def parse_mountinfo_line(line: str) -> MountInfo:
     major_minor = parts[2]
     root = parts[3]
     mount_point = parts[4]
-    mount_options = parts[5].split(',')
+    mount_options = parse_options(parts[5])
     
     # Find the position of the separator '-'
     separator_index = parts.index('-')
@@ -37,7 +47,12 @@ def parse_mountinfo_line(line: str) -> MountInfo:
     
     filesystem_type = parts[separator_index + 1]
     mount_source = parts[separator_index + 2]
-    super_options = parts[separator_index + 3].split(',')
+    
+    # Handle possible absence of super options
+    if separator_index + 3 < len(parts):
+        super_options = parse_options(parts[separator_index + 3])
+    else:
+        super_options = {}
 
     return MountInfo(
         mount_id=mount_id,
@@ -60,6 +75,8 @@ def parse_mountinfo(mountinfo: str) -> List[MountInfo]:
 data = """36 3665 98:1 /mnt1 /mnt2 rw,noatime info info2:2 - ext3 none errors=continue,tt
 37 3345 98:0 / /mnt5/file-rere rw,noatime - ext3 /dev/root 
 38 3125 98:0 / /mnt7 rw,teer=234,noatime master:1 underdir:/mnt/dir - ext3 /dev/root rw,errors=continue,tt"""
+with open("/proc/self/mountinfo", 'r') as file:
+            data = file.read()
 
 parsed_data = parse_mountinfo(data)
 for entry in parsed_data:
