@@ -1,5 +1,6 @@
 from dataclasses import dataclass, field
 from typing import Dict, List, Tuple
+import os
 
 @dataclass
 class MountinfoEntry:
@@ -90,16 +91,25 @@ class MountInfo():
 
         return all_mountinfo
 
+#dataclass
+class FileInfo:
+    full_name: str
+    whiteout: bool
 
+#dataclass
+class FileSystemInfo:
+    level: int    # 0 for the base directory, -1 for the first lower directory, etc.
+    all_file_info: List[FileInfo]
 
 @dataclass 
 class OFSinfo:
     base_dir: str
     work_dir: str
     upper_dir: str
-    lower_dir: list[str]  # list of lower directories in the same order as they appear in fstab. The first entry is the closest to the base/upper directory
+    lower_dir: List[str]  # list of lower directories in the same order as they appear in fstab. The first entry is the closest to the base/upper directory
     mount_info : MountinfoEntry
     options: dict[str,str] 
+    all_dir_info: Dict[str,FileSystemInfo]
 
     def __init__(self):
         self.lower_dir = []
@@ -132,7 +142,42 @@ class OFSinfo:
         OFSstruct.work_dir = OFSstruct.options["workdir"]
 
         return OFSstruct
-    
+    @staticmethod
+    def get_all_dir_info(OFSinfo)->Dict[str,FileSystemInfo]:
+        """
+        get the information about the directories in the OverlayFS
+
+        Args:
+            OFSinfo (OFSinfo): The information about the OverlayFS
+
+        Returns:
+            dict: A dictionary containing the information about the directories in the OverlayFS
+        """        
+
+        all_dir_info = {}
+        for i, lowerdir in enumerate(OFSinfo.lower_dir):
+            this_dir_info = FileSystemInfo(level=-i, all_file_info=[])
+            # get all filenames and size in the directories in lowerdir
+
+            # get the base directory
+            this_dir_info.all_file_info.append(FileInfo(full_name=OFSinfo.base_dir, whiteout=True))
+
+            # get all the files in the lower directories
+            for root, dirs, files in os.walk(lowerdir):
+                for name in files:
+                    full_name = os.path.join(root, name)
+                    this_dir_info.all_file_info.append(FileInfo(full_name=full_name, whiteout=False))
+                    if os.path.islink(full_name):
+                        whiteout = os.path.islink(full_name)    
+                        this_dir_info.all_file_info.append(FileInfo(full_name=full_name, whiteout=whiteout))    
+                    # this_dir_info.all_file_info.append(FileInfo(full_name=full_name, whiteout=True))
+
+
+            # get all the whiteout files in the lower directories
+            this_dir_info.all_file_info.append(FileInfo(full_name=OFSinfo.base_dir, whiteout=False))
+
+            all_dir_info[lowerdir] = this_dir_info
+        return all_dir_info
 
 @dataclass
 class OFSManager:
