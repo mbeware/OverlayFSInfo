@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 from mbe_ofslib import OFSManager, OFSinfo
 import argparse
 
